@@ -85,4 +85,31 @@ While these numbers vary a lot from my own configuration, which is natural becau
 
 Can anyone help me find the reason for this low cache performance?
 
-In case someone is interested in taking a look, I've made the [benchmark code](https://github.com/Crifrald/rpi-bmark) available.
+---
+
+On reddit someone suggested to use the performance monitor, which I did set up to measure the number of L1 cache and memory accesses, and the results seem to confirm that the data is indeed being written to memory.
+
+The following are the results of running the benchmark on a single core:
+
+    Core #0 8GB written in 1.734 secs (mem acc: 1073741814, L1 acc: 1073741816)
+
+The following are the results of running the same code on all 4 cores at the same time:
+
+    Core #0 8GB written in 13.168 secs (mem acc: 1073741824, L1 acc: 1073741824)
+    Core #2 8GB written in 13.173 secs (mem acc: 1073741811, L1 acc: 1073741816)
+    Core #1 8GB written in 13.173 secs (mem acc: 1073741803, L1 acc: 1073741808)
+    Core #3 8GB written in 13.172 secs (mem acc: 1073741816, L1 acc: 1073741816)
+
+The following are the results of running the same code with twice as many iterations and a buffer of half the size (this slowed down a lot compared to when I was not monitoring for some reason):
+
+    Core #0 8GB written in 11.689 secs (mem acc: 1073741829, L1 acc: 1073741828)
+    Core #2 8GB written in 11.694 secs (mem acc: 1073741803, L1 acc: 1073741808)
+    Core #1 8GB written in 11.694 secs (mem acc: 1073741803, L1 acc: 1073741808)
+    Core #3 8GB written in 11.693 secs (mem acc: 1073741816, L1 acc: 1073741816)
+
+And finally, the following are the results that I get when I make the stacks uncachable normal memory:
+
+    Core #1 8GB written in 19.562 secs (mem acc: 1073741803, L1 acc: 0)
+    Core #2 8GB written in 19.563 secs (mem acc: 1073741811, L1 acc: 0)
+    Core #0 8GB written in 19.564 secs (mem acc: 1073741803, L1 acc: 0)
+    Core #3 8GB written in 19.566 secs (mem acc: 1073741819, L1 acc: 0)
