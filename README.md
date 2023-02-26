@@ -72,7 +72,7 @@ This is how I'm setting up the MMU-related registers:
         msr sctlr_el1, x0
         isb
 
-All the memory except hardware memory is being mapped as inner and outer write-back non-transient read-allocating write-allocating cacheable (MAIR index 0) with the read-only sections being marked as not shared and the read-write sections being marked as full system shared, except for the stacks which are marked as not shared because Rust guarantees that safe code cannot access code from other threads unless that data is static.
+All the memory except hardware memory is being mapped as inner and outer write-back non-transient read-allocating write-allocating cacheable (MAIR index 0) with the read-only sections being marked as not shared and the read-write sections being marked as full system shared, except for the stacks which are marked as not shared because Rust guarantees that safe code cannot access data from other threads unless that data is static.
 
 To make sure that Linux isn't doing anything unusual, I wrote a kernel module to report the values in some registers as well as in the first user space page that it could find, and the values are as follows:
 
@@ -113,3 +113,14 @@ And finally, the following are the results that I get when I make the stacks unc
     Core #2 8GB written in 19.563 secs (mem acc: 1073741811, L1 acc: 0)
     Core #0 8GB written in 19.564 secs (mem acc: 1073741803, L1 acc: 0)
     Core #3 8GB written in 19.566 secs (mem acc: 1073741819, L1 acc: 0)
+
+---
+
+I finally managed to find a way to accelerate this, which is by giving the CPU a hint that the entire 4KB buffer is to be kept in cache for as long as possible.  I do not have any idea of what Linux is doing to provide such a performance boost without the cache hints, but won't waste any more time trying to figure it out since I don't mind using them.
+
+After hinting the cache I got the following results:
+
+    Core #0 wrote 8GB in 0.619 secs
+    Core #2 wrote 8GB in 0.619 secs
+    Core #1 wrote 8GB in 0.619 secs
+    Core #3 wrote 8GB in 0.619 secs

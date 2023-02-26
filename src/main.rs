@@ -35,26 +35,31 @@ pub extern "C" fn start() -> !
 /// Benchmarks.
 fn bench()
 {
-    let start: usize;
-    unsafe {
-        asm!(
-            "mov {tmp}, #0x3",
-            "msr pmcr_el0, {tmp}",
-            "mov {tmp}, #0x3",
-            "msr pmcntenset_el0, {tmp}",
-            "mov {tmp}, #0x4",
-            "msr pmevtyper0_el0, {tmp}",
-            "mov {tmp}, #0x13",
-            "msr pmevtyper1_el0, {tmp}",
-            "mrs {now}, cntpct_el0",
-            now = out (reg) start,
-            tmp = out (reg) _,
-            options (nomem, nostack, preserves_flags)
-        );
-    }
     #[repr(align(64), C)]
     struct Buffer([u8; 0x1000]);
     let mut buf = MaybeUninit::<Buffer>::uninit();
+    unsafe {
+        asm!(
+            "add {eaddr}, {addr}, #0x1000",
+            "0:",
+            "cmp {addr}, {eaddr}",
+            "beq 0f",
+            "prfm pstl1keep, [{addr}]",
+            "add {addr}, {addr}, #64",
+            "b 0b",
+            "0:",
+            addr = inout (reg) buf.as_mut_ptr() => _,
+            eaddr = out (reg) _,
+        );
+    }
+    let start: usize;
+    unsafe {
+        asm!(
+            "mrs {now}, cntpct_el0",
+            now = out (reg) start,
+            options (nomem, nostack, preserves_flags)
+        );
+    }
     for _ in 0 .. 2 << 20 {
         unsafe {
             asm!(
@@ -75,18 +80,12 @@ fn bench()
     }
     let end: usize;
     let freq: usize;
-    let l1acnt: usize;
-    let macnt: usize;
     unsafe {
         asm!(
             "mrs {now}, cntpct_el0",
             "mrs {freq}, cntfrq_el0",
-            "mrs {l1acnt}, pmevcntr0_el0",
-            "mrs {macnt}, pmevcntr1_el0",
             now = out (reg) end,
             freq = out (reg) freq,
-            l1acnt = out (reg) l1acnt,
-            macnt = out (reg) macnt,
             options (nomem, nostack, preserves_flags)
         );
     }
@@ -94,7 +93,7 @@ fn bench()
     let secs = diff / freq;
     let msecs = diff / (freq / 1000) % 1000;
     let core = cpu_id();
-    debug!("Core #{core} 8GB written in {secs}.{msecs:03} secs (mem acc: {macnt}, L1 acc: {l1acnt})");
+    debug!("Core #{core} wrote 8GB in {secs}.{msecs:03} secs");
 }
 
 /// Panics with diagnostic information about a fault.
